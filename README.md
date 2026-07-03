@@ -10,6 +10,13 @@
 </p>
 
 <p align="center">
+  <sub>⚠️ <b>Escáner preliminar, no avanzado.</b> Fragua hace una primera pasada rápida
+  sobre configuración, cabeceras, TLS y superficie común. <b>No sustituye</b> a un
+  pentest manual ni a un DAST completo (Burp, ZAP), y <b>no garantiza</b> detectar
+  todos los problemas de los apartados que revisa. Confirma siempre los hallazgos a mano.</sub>
+</p>
+
+<p align="center">
   <img alt="Go" src="https://img.shields.io/badge/Go-stdlib_only-00ADD8?logo=go&logoColor=white">
   <img alt="Sin dependencias" src="https://img.shields.io/badge/dependencias-0-15e6a0">
   <img alt="Binario único" src="https://img.shields.io/badge/binario-único-8a52e8">
@@ -23,9 +30,8 @@ TLS y superficie común (**de forma segura y no destructiva**) y **genera un
 fichero JSON** que subes tú a Crisol-RX. No sube nada por API: solo produce el
 archivo.
 
-Misma filosofía que Crisol-RX: **sin dependencias** (solo la librería estándar de
-Go) y **un único binario**. Cross-compila para Windows, macOS (Apple Silicon e
-Intel) y Linux, incluyendo ARM64.
+Misma filosofía que Crisol-RX: **sin dependencias** y **un único ejecutable**.
+Disponible para Windows, macOS (Apple Silicon e Intel) y Linux, incluyendo ARM64.
 
 > ⚠️ **Uso ético.** Escanea únicamente activos para los que tengas autorización.
 
@@ -33,10 +39,21 @@ Intel) y Linux, incluyendo ARM64.
 
 ## Instalación
 
-### Binarios precompilados
-
 Descarga el binario de tu plataforma desde la
-[página de releases](https://github.com/D3M0NH4NT3R/Fragua/releases).
+[página de releases](https://github.com/D3M0NH4NT3R/Fragua/releases). Es un
+**único ejecutable**, sin instalación ni dependencias.
+
+| Plataforma | Fichero |
+|---|---|
+| Windows (x64 / ARM64) | `fragua-windows-amd64.exe` · `fragua-windows-arm64.exe` |
+| macOS (Apple Silicon / Intel) | `fragua-macos-apple-silicon` · `fragua-macos-intel` |
+| Linux (x64 / ARM64) | `fragua-linux-amd64` · `fragua-linux-arm64` |
+
+En macOS/Linux, dale permisos de ejecución la primera vez:
+
+```bash
+chmod +x fragua-*        # y ejecútalo con ./fragua-...
+```
 
 ## Uso
 
