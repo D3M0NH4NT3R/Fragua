@@ -6,21 +6,24 @@
 
 <p align="center">
   Escáner web ligero que detecta vulnerabilidades comunes y las exporta a
-  <a href="https://github.com/D3M0NH4NT3R/Crisol-RX">Crisol-RX</a>. Fragua es un (Proyecto no terminado)
+  <a href="https://github.com/D3M0NH4NT3R/Crisol-RX">Crisol-RX</a>.
 </p>
 
 <p align="center">
-  <sub>⚠️ <b>Escáner preliminar, no avanzado.</b> Fragua hace una primera pasada rápida
-  sobre configuración, cabeceras, TLS y superficie común. <b>No sustituye</b> a un
-  pentest manual ni a un DAST completo (Burp, ZAP), y <b>no garantiza</b> detectar
-  todos los problemas de los apartados que revisa. Confirma siempre los hallazgos a mano.</sub>
+  <sub>⚠️ <b>Proyecto en desarrollo — no está terminado.</b> Fragua es un escáner
+  <b>preliminar</b>, no una herramienta de análisis avanzado: hace una primera pasada
+  rápida sobre configuración, cabeceras, TLS y superficie común. <b>No sustituye</b> a un
+  pentest manual ni a un DAST completo (Burp, ZAP), y <b>no garantiza</b> detectar todos
+  los problemas de los apartados que revisa. Puede dar falsos positivos y negativos;
+  confirma siempre los hallazgos a mano.</sub>
 </p>
 
 <p align="center">
   <img alt="Go" src="https://img.shields.io/badge/Go-stdlib_only-00ADD8?logo=go&logoColor=white">
   <img alt="Sin dependencias" src="https://img.shields.io/badge/dependencias-0-15e6a0">
   <img alt="Binario único" src="https://img.shields.io/badge/binario-único-8a52e8">
-  <img alt="Uso ético" src="https://img.shields.io/badge/uso-ético-e35d2a">
+  <img alt="Estado" src="https://img.shields.io/badge/estado-en_desarrollo-e35d2a">
+  <img alt="Uso ético" src="https://img.shields.io/badge/uso-ético-d6244a">
 </p>
 
 ---
@@ -61,6 +64,9 @@ chmod +x fragua-*        # y ejecútalo con ./fragua-...
 ./fragua --url https://objetivo.ejemplo --out objetivo.json
 ```
 
+Al arrancar muestra un banner con el icono y, **en vivo**, cada vulnerabilidad
+que va encontrando (con la severidad en color). Al terminar escribe el JSON.
+
 Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 
 - **Importar workspace** → crea un workspace nuevo con un proyecto y las vulnerabilidades.
@@ -68,16 +74,36 @@ Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 
 ### Opciones
 
-| Opción | Para qué |
-|---|---|
-| `--url` | Activo a escanear (obligatorio). Si no pones esquema, se asume `https://`. |
-| `--lang` | Idioma del reporte: `es` (por defecto), `en` o `both`. |
-| `--out` | Fichero de salida. Por defecto `crisol-<host>.json`. |
-| `--name` | Nombre del workspace/proyecto (por defecto, el host). |
-| `--insecure` | No verificar el certificado TLS del objetivo. |
-| `--timeout` | Timeout por petición en segundos (por defecto 15). |
-| `--max-pages` | Nº máximo de páginas a rastrear del mismo dominio (por defecto 20). |
-| `--no-crawl` | No rastrear enlaces; escanear solo la URL dada. |
+| Opción | Por defecto | Para qué |
+|---|---|---|
+| `--url` | — | Activo a escanear (**obligatorio**). Si no pones esquema, se asume `https://`. |
+| `--lang` | `es` | Idioma del reporte: `es`, `en` o `both`. |
+| `--out` | `crisol-<host>.json` | Fichero de salida. |
+| `--name` | el host | Nombre del workspace/proyecto en el reporte. |
+| `--insecure` | `false` | No verificar el certificado TLS del objetivo. |
+| `--timeout` | `15` | Timeout por petición, en segundos. |
+| `--max-pages` | `20` | Nº máximo de páginas a rastrear del mismo dominio. |
+| `--no-crawl` | `false` | No rastrear enlaces; escanear solo la URL dada. |
+| `--quiet` | `false` | No mostrar los hallazgos en vivo (solo el resumen). |
+
+Variables de entorno: `NO_COLOR=1` desactiva el color de la salida.
+
+### Salida en vivo (verbose)
+
+Por defecto Fragua es **verbose**: imprime cada hallazgo en cuanto lo detecta,
+con un badge de severidad en color.
+
+```
+  [CRIT] Fichero .env expuesto  https://host/.env
+  [HIGH] Posible inyección SQL (basada en errores) en 'id'
+  [HIGH] CORS refleja el Origin de la petición (con credenciales)
+  [MED ] Posible redirección abierta (open redirect) en 'next'
+  [LOW ] Falta HSTS (Strict-Transport-Security)
+  [INFO] Tecnologías detectadas en el activo
+```
+
+`CRIT` rojo · `HIGH` naranja · `MED` amarillo · `LOW` verde · `INFO` morado.
+Usa `--quiet` para silenciarlo.
 
 ### Idioma del reporte
 
@@ -92,7 +118,7 @@ Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 
 ## Qué comprueba
 
-Comprobaciones pasivas y activas ligeras, todas **GET/OPTIONS/TRACE y no
+Comprobaciones pasivas y activas ligeras, todas **GET/OPTIONS/POST/TRACE y no
 destructivas**. Por defecto **rastrea el mismo dominio** (hasta `--max-pages`) y
 repite las comprobaciones por página.
 
@@ -115,10 +141,11 @@ repite las comprobaciones por página.
 - Autenticación Basic sobre HTTP.
 - Listado de directorios habilitado.
 - Política de dominio cruzado permisiva (`crossdomain.xml`, `clientaccesspolicy.xml`).
-- Ficheros sensibles expuestos: `.git`, `.env`, `.svn`, `web.config`,
-  `wp-config.php.bak`, `.htpasswd`, `phpinfo.php`, `.aws/credentials`,
-  `docker-compose.yml`, `backup.sql`, `actuator/health`, `appsettings.json`,
-  `WEB-INF/web.xml`, `server-status`, `security.txt`, y más.
+- Ficheros sensibles expuestos: `.git`, `.env`, `.env.local`, `.svn`, `web.config`,
+  `wp-config.php.bak`, `.htpasswd`, `.git-credentials`, `phpinfo.php`,
+  `.aws/credentials`, `docker-compose.yml`, `backup.sql`, `actuator/health`,
+  `actuator/env`, `appsettings.json`, `WEB-INF/web.xml`, `server-status`,
+  `security.txt`, y más.
 - `robots.txt` que revela rutas internas y detección de stack (WordPress/Drupal/Joomla).
 
 **Fugas de información (en el cuerpo)**
@@ -126,8 +153,18 @@ repite las comprobaciones por página.
 
 **Por página**
 - Posible **XSS reflejado** (marcador benigno; requiere confirmación manual).
+- Posible **inyección SQL basada en errores** (comilla en parámetros reales).
 - **Contenido mixto** (recurso HTTP en página HTTPS).
 - **Formulario de credenciales sin cifrar**.
+
+**Comprobaciones avanzadas** (activas ligeras, no destructivas)
+- **Open redirect**: parámetros de redirección que apuntan a dominios externos.
+- **CORS por reflexión de Origin** (peor si permite credenciales).
+- **Inyección de cabecera Host** (envenenamiento de caché / de enlaces).
+- **GraphQL con introspección** abierta.
+- **Secretos/credenciales** embebidos en HTML o ficheros JavaScript (claves AWS,
+  tokens de GitHub/Google/Slack/Stripe, claves privadas…).
+- Documentación de API expuesta (`swagger.json`, `openapi.json`, `api-docs`).
 
 No es un DAST completo (no reemplaza a Burp/ZAP ni prueba SQLi a fondo o lógica de
 negocio). Cubre configuración, cabeceras, TLS y superficie común, y deja los
@@ -139,10 +176,18 @@ deduplican por título + activo.
 El fichero es el formato `crisol-workspace` (el mismo de «Exportar workspace» de
 Crisol-RX), por eso Crisol lo importa tal cual.
 
+## Estado del proyecto
+
+Fragua está **en desarrollo activo**. Faltan comprobaciones por añadir, la
+cobertura no es completa y la interfaz/salida pueden cambiar entre versiones.
+Se agradecen ideas y reportes de fallos en los *issues*.
+
 ## Uso ético y responsabilidad
 
-Fragua realiza peticiones a un objetivo remoto. **Escanéalo solo si tienes
-autorización explícita.** El autor no se responsabiliza de un uso indebido.
+Fragua realiza peticiones a un objetivo remoto, incluyendo algunas comprobaciones
+activas (open redirect, Host falso, comilla SQL, introspección GraphQL).
+**Escanéalo solo si tienes autorización explícita.** El autor no se responsabiliza
+de un uso indebido.
 
 ## Licencia
 
