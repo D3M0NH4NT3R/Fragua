@@ -38,24 +38,6 @@ Intel) y Linux, incluyendo ARM64.
 Descarga el binario de tu plataforma desde la
 [página de releases](https://github.com/D3M0NH4NT3R/Fragua/releases).
 
-### Compilar desde el código
-
-```bash
-git clone https://github.com/D3M0NH4NT3R/Fragua.git
-cd Fragua
-go build -o fragua .
-```
-
-Para todas las plataformas de golpe (binarios en `dist/`):
-
-```bash
-./build.sh
-```
-
-Genera: `fragua-linux-amd64`, `fragua-linux-arm64`, `fragua-macos-intel`,
-`fragua-macos-apple-silicon`, `fragua-windows-amd64.exe` y
-`fragua-windows-arm64.exe`. No necesita CGO ni toolchains externas.
-
 ## Uso
 
 ```bash
@@ -134,24 +116,6 @@ No es un DAST completo (no reemplaza a Burp/ZAP ni prueba SQLi a fondo o lógica
 negocio). Cubre configuración, cabeceras, TLS y superficie común, y deja los
 hallazgos listos para revisar y ampliar en Crisol-RX. Los hallazgos repetidos se
 deduplican por título + activo.
-
-## Compilación avanzada
-
-**Icono en el `.exe`.** En Windows el icono se incrusta en el ejecutable durante
-`./build.sh` mediante [go-winres](https://github.com/tc-hib/go-winres):
-
-```bash
-go install github.com/tc-hib/go-winres@latest   # una vez
-./build.sh
-```
-
-**Ofuscación.** Si tienes [garble](https://github.com/burrowers/garble)
-instalado, `build.sh` ofusca el binario (nombres, literales y metadatos). No añade
-dependencias; es solo una herramienta de build. Forzar sin ofuscar:
-`NO_OBFUSCATE=1 ./build.sh`.
-
-**Iconos.** El diseño vive en `assets/` (`fragua.svg`, PNGs, `fragua.ico`,
-`fragua.icns`). Se regeneran con `python3 assets/make_icon.py`.
 
 ## Formato de salida
 
