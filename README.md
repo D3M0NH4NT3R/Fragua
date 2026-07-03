@@ -6,7 +6,7 @@
 
 <p align="center">
   Escáner web ligero que detecta vulnerabilidades comunes y las exporta a
-  <a href="https://github.com/D3M0NH4NT3R/Crisol-RX">Crisol-RX</a>.
+  <a href="https://github.com/D3M0NH4NT3R/Crisol-RX">Crisol-RX</a>. Fragua es un (Proyecto no terminado)
 </p>
 
 <p align="center">
