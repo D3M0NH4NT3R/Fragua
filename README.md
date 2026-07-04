@@ -5,38 +5,44 @@
 <h1 align="center">Fragua</h1>
 
 <p align="center">
-  Escáner web ligero que detecta vulnerabilidades comunes y las exporta a
+  Escáner de seguridad ligero que analiza <b>objetivos web</b> y <b>máquinas</b>
+  (Linux y Windows) y exporta los hallazgos a
   <a href="https://github.com/D3M0NH4NT3R/Crisol-RX">Crisol-RX</a>.
 </p>
 
 <p align="center">
   <sub>⚠️ <b>Proyecto en desarrollo — no está terminado.</b> Fragua es un escáner
-  <b>preliminar</b>, no una herramienta de análisis avanzado: hace una primera pasada
-  rápida sobre configuración, cabeceras, TLS y superficie común. <b>No sustituye</b> a un
-  pentest manual ni a un DAST completo (Burp, ZAP), y <b>no garantiza</b> detectar todos
-  los problemas de los apartados que revisa. Puede dar falsos positivos y negativos;
-  confirma siempre los hallazgos a mano.</sub>
+  <b>preliminar</b>, no una herramienta de análisis avanzado. <b>No sustituye</b> a un
+  pentest manual ni a herramientas dedicadas (Burp, ZAP, nmap, LinPEAS/WinPEAS), y
+  <b>no garantiza</b> detectar todos los problemas de los apartados que revisa. Puede
+  dar falsos positivos y negativos; confirma siempre los hallazgos a mano.</sub>
 </p>
 
 <p align="center">
-  <img alt="Go" src="https://img.shields.io/badge/Go-stdlib_only-00ADD8?logo=go&logoColor=white">
-  <img alt="Sin dependencias" src="https://img.shields.io/badge/dependencias-0-15e6a0">
-  <img alt="Binario único" src="https://img.shields.io/badge/binario-único-8a52e8">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white">
+  <img alt="Binario estático" src="https://img.shields.io/badge/binario-estático_único-15e6a0">
+  <img alt="Sin CGO" src="https://img.shields.io/badge/CGO-off-8a52e8">
   <img alt="Estado" src="https://img.shields.io/badge/estado-en_desarrollo-e35d2a">
   <img alt="Uso ético" src="https://img.shields.io/badge/uso-ético-d6244a">
 </p>
 
 ---
 
-**Fragua** escanea un activo web, comprueba fallos de configuración, cabeceras,
-TLS y superficie común (**de forma segura y no destructiva**) y **genera un
-fichero JSON** que subes tú a Crisol-RX. No sube nada por API: solo produce el
-archivo.
+**Fragua** hace tres cosas, que puedes combinar:
 
-Misma filosofía que Crisol-RX: **sin dependencias** y **un único ejecutable**.
-Disponible para Windows, macOS (Apple Silicon e Intel) y Linux, incluyendo ARM64.
+1. **Web** (`--url`): configuración, cabeceras, TLS y superficie común de un sitio.
+2. **Máquina — por fuera** (`--host`): escaneo de puertos/servicios (top 1000 de nmap).
+3. **Máquina — por dentro** (`--host` + `--ssh-user`): auditoría de configuración y
+   vías de escalada vía SSH, al estilo de **LinPEAS/WinPEAS** (Linux y Windows).
 
-> ⚠️ **Uso ético.** Escanea únicamente activos para los que tengas autorización.
+Todo **de forma no destructiva**, con salida **en vivo y coloreada**, y genera un
+fichero JSON que subes tú a Crisol-RX. No sube nada por API: solo produce el archivo.
+
+**Un único ejecutable estático** (sin CGO), para Windows, macOS (Apple Silicon e
+Intel) y Linux, incluyendo ARM64. Usa solo la librería estándar de Go más
+`golang.org/x/crypto/ssh` (pura-Go) para la auditoría por SSH.
+
+> ⚠️ **Uso ético.** Audita únicamente sistemas para los que tengas autorización.
 
 ---
 
@@ -44,7 +50,7 @@ Disponible para Windows, macOS (Apple Silicon e Intel) y Linux, incluyendo ARM64
 
 Descarga el binario de tu plataforma desde la
 [página de releases](https://github.com/D3M0NH4NT3R/Fragua/releases). Es un
-**único ejecutable**, sin instalación ni dependencias.
+**único ejecutable**, sin instalación ni dependencias en tiempo de ejecución.
 
 | Plataforma | Fichero |
 |---|---|
@@ -61,11 +67,22 @@ chmod +x fragua-*        # y ejecútalo con ./fragua-...
 ## Uso
 
 ```bash
-./fragua --url https://objetivo.ejemplo --out objetivo.json
+# Web
+./fragua --url https://objetivo.ejemplo
+
+# Máquina: puertos/servicios "por fuera"
+./fragua --host 10.0.0.5
+
+# Máquina: por fuera + por dentro (auditoría SSH tipo PEAS)
+./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519
+
+# Todo a la vez, en un solo reporte
+./fragua --url https://objetivo.ejemplo --host 10.0.0.5 --ssh-user admin --ssh-pass '****'
 ```
 
-Al arrancar muestra un banner con el icono y, **en vivo**, cada vulnerabilidad
-que va encontrando (con la severidad en color). Al terminar escribe el JSON.
+Al arrancar muestra un banner con el icono y, **en vivo**, cada hallazgo que va
+encontrando (con la severidad en color y, por dentro, por secciones tipo PEAS).
+Al terminar escribe el JSON.
 
 Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 
@@ -74,36 +91,89 @@ Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 
 ### Opciones
 
+**Objetivo** (indica `--url`, `--host` o ambos):
+
 | Opción | Por defecto | Para qué |
 |---|---|---|
-| `--url` | — | Activo a escanear (**obligatorio**). Si no pones esquema, se asume `https://`. |
+| `--url` | — | Activo **web** a escanear. Si no pones esquema, se asume `https://`. |
+| `--host` | — | **Máquina** a auditar (IP/host, no URL): puertos/servicios y, con `--ssh-user`, por dentro. |
+
+**Escaneo de host:**
+
+| Opción | Por defecto | Para qué |
+|---|---|---|
+| `--ports` | top 1000 nmap | Puertos a escanear: `22,80,443` o rango `1-1024`. Vacío = los **1000 puertos top de nmap**. |
+| `--all-ports` | `false` | Escanear los **65535** puertos (lento, más concurrencia). |
+| `--no-portscan` | `false` | No escanear puertos (solo la auditoría SSH). |
+| `--ssh-user` | — | Usuario SSH. **Activa la auditoría interna** (por dentro). |
+| `--ssh-pass` | — | Contraseña SSH (o usa `--ssh-key`). |
+| `--ssh-key` | — | Ruta a la clave privada SSH. |
+| `--ssh-port` | `22` | Puerto SSH. |
+
+**General:**
+
+| Opción | Por defecto | Para qué |
+|---|---|---|
 | `--lang` | `es` | Idioma del reporte: `es`, `en` o `both`. |
 | `--out` | `crisol-<host>.json` | Fichero de salida. |
 | `--name` | el host | Nombre del workspace/proyecto en el reporte. |
-| `--insecure` | `false` | No verificar el certificado TLS del objetivo. |
-| `--timeout` | `15` | Timeout por petición, en segundos. |
-| `--max-pages` | `20` | Nº máximo de páginas a rastrear del mismo dominio. |
-| `--no-crawl` | `false` | No rastrear enlaces; escanear solo la URL dada. |
+| `--insecure` | `false` | No verificar el certificado TLS del objetivo web. |
+| `--timeout` | `15` | Timeout por petición/conexión, en segundos. |
+| `--max-pages` | `20` | Nº máximo de páginas a rastrear del mismo dominio (web). |
+| `--no-crawl` | `false` | No rastrear enlaces; escanear solo la URL dada (web). |
 | `--quiet` | `false` | No mostrar los hallazgos en vivo (solo el resumen). |
 
 Variables de entorno: `NO_COLOR=1` desactiva el color de la salida.
 
+### Ejemplos por opción
+
+| Opción | Ejemplo |
+|---|---|
+| `--url` | `./fragua --url https://objetivo.ejemplo` |
+| `--host` | `./fragua --host 10.0.0.5` |
+| `--ports` (lista) | `./fragua --host 10.0.0.5 --ports 22,80,443,8080` |
+| `--ports` (rango) | `./fragua --host 10.0.0.5 --ports 1-1024` |
+| `--all-ports` | `./fragua --host 10.0.0.5 --all-ports` |
+| `--no-portscan` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --no-portscan` |
+| `--ssh-user` + `--ssh-pass` | `./fragua --host 10.0.0.5 --ssh-user admin --ssh-pass 'Secreto123'` |
+| `--ssh-key` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519` |
+| `--ssh-port` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --ssh-port 2222` |
+| `--lang` (inglés) | `./fragua --url https://objetivo.ejemplo --lang en` |
+| `--lang` (ambos) | `./fragua --url https://objetivo.ejemplo --lang both` |
+| `--out` | `./fragua --url https://objetivo.ejemplo --out informe.json` |
+| `--name` | `./fragua --url https://objetivo.ejemplo --name "Cliente ACME"` |
+| `--insecure` | `./fragua --url https://192.168.1.10 --insecure` |
+| `--timeout` | `./fragua --url https://objetivo.ejemplo --timeout 30` |
+| `--max-pages` | `./fragua --url https://objetivo.ejemplo --max-pages 50` |
+| `--no-crawl` | `./fragua --url https://objetivo.ejemplo --no-crawl` |
+| `--quiet` | `./fragua --url https://objetivo.ejemplo --quiet` |
+| `NO_COLOR` (env) | `NO_COLOR=1 ./fragua --url https://objetivo.ejemplo` |
+
+Ejemplo completo combinando web + host interno en un reporte bilingüe:
+
+```bash
+./fragua --url https://objetivo.ejemplo \
+         --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 \
+         --lang both --out informe.json
+```
+
 ### Salida en vivo (verbose)
 
 Por defecto Fragua es **verbose**: imprime cada hallazgo en cuanto lo detecta,
-con un badge de severidad en color.
+con un badge de severidad en color. La auditoría interna va además por **secciones
+tipo PEAS** (`╔════╣ Sección`).
 
 ```
-  [CRIT] Fichero .env expuesto  https://host/.env
+  [CRIT] Socket de Docker escribible  10.0.0.5
+  [HIGH] Binarios SUID explotables (GTFOBins)  10.0.0.5
   [HIGH] Posible inyección SQL (basada en errores) en 'id'
-  [HIGH] CORS refleja el Origin de la petición (con credenciales)
   [MED ] Posible redirección abierta (open redirect) en 'next'
   [LOW ] Falta HSTS (Strict-Transport-Security)
-  [INFO] Tecnologías detectadas en el activo
+  [INFO] Puerto abierto: 22/tcp (ssh)  10.0.0.5:22
 ```
 
 `CRIT` rojo · `HIGH` naranja · `MED` amarillo · `LOW` verde · `INFO` morado.
-Usa `--quiet` para silenciarlo.
+Usa `--quiet` para silenciarlo, o `NO_COLOR=1` para quitar el color.
 
 ### Idioma del reporte
 
@@ -118,58 +188,70 @@ Usa `--quiet` para silenciarlo.
 
 ## Qué comprueba
 
-Comprobaciones pasivas y activas ligeras, todas **GET/OPTIONS/POST/TRACE y no
-destructivas**. Por defecto **rastrea el mismo dominio** (hasta `--max-pages`) y
-repite las comprobaciones por página.
+Todo son comprobaciones pasivas y activas ligeras, **no destructivas** y de solo
+lectura.
 
-**Transporte y TLS**
-- Comunicación sin cifrar (HTTP) y HTTP que no redirige a HTTPS.
-- Certificado: caducado, próximo a caducar, autofirmado o cadena incompleta,
-  host no cubierto (CN/SAN), firma débil (SHA-1/MD5) y clave RSA corta.
-- Protocolos obsoletos soportados (TLS 1.0 / 1.1) y suites de cifrado débiles.
+### Web (`--url`)
 
-**Cabeceras**
-- CSP ausente **o débil** (`unsafe-inline`, `unsafe-eval`, comodines).
-- Anti-clickjacking, X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
-- HSTS ausente o débil; COOP y CORP; X-XSS-Protection deshabilitada.
-- Divulgación de tecnología (Server, X-Powered-By, generator…).
+Rastrea el mismo dominio (hasta `--max-pages`) y repite las comprobaciones por página.
 
-**Configuración y superficie**
-- Cookies sin Secure / HttpOnly / SameSite.
-- CORS mal configurado (comodín con credenciales).
-- Métodos HTTP peligrosos (PUT/DELETE/PATCH/CONNECT/TRACE/TRACK) y método TRACE (XST).
-- Autenticación Basic sobre HTTP.
-- Listado de directorios habilitado.
-- Política de dominio cruzado permisiva (`crossdomain.xml`, `clientaccesspolicy.xml`).
-- Ficheros sensibles expuestos: `.git`, `.env`, `.env.local`, `.svn`, `web.config`,
-  `wp-config.php.bak`, `.htpasswd`, `.git-credentials`, `phpinfo.php`,
-  `.aws/credentials`, `docker-compose.yml`, `backup.sql`, `actuator/health`,
-  `actuator/env`, `appsettings.json`, `WEB-INF/web.xml`, `server-status`,
-  `security.txt`, y más.
-- `robots.txt` que revela rutas internas y detección de stack (WordPress/Drupal/Joomla).
+- **Transporte/TLS**: HTTP en claro, HTTP que no redirige a HTTPS, certificado
+  caducado/autofirmado/cadena incompleta/host no cubierto/firma débil/clave corta,
+  TLS 1.0/1.1 y cifrados débiles.
+- **Cabeceras**: CSP ausente o débil, anti-clickjacking, nosniff, Referrer-Policy,
+  Permissions-Policy, HSTS, COOP/CORP, X-XSS-Protection, divulgación de tecnología.
+- **Configuración/superficie**: cookies sin flags, CORS mal configurado, métodos
+  HTTP peligrosos, Basic sobre HTTP, listado de directorios, `crossdomain.xml`,
+  ficheros expuestos (`.git`, `.env`, `wp-config.php.bak`, `.git-credentials`,
+  `swagger.json`, `actuator/env`…), `robots.txt`, detección de stack.
+- **Por página**: posible **XSS reflejado**, posible **SQLi basada en errores**,
+  contenido mixto, formulario de credenciales sin cifrar.
+- **Avanzadas** (activas ligeras): **open redirect**, **CORS por reflexión de
+  Origin**, **Host header injection**, **GraphQL con introspección**, **secretos en
+  HTML/JS** (AWS, GitHub, Google, Slack, Stripe, claves privadas…).
 
-**Fugas de información (en el cuerpo)**
-- Clave privada (PEM) servida, trazas de error / SQL, IPs internas y correos.
+### Máquina por fuera (`--host`)
 
-**Por página**
-- Posible **XSS reflejado** (marcador benigno; requiere confirmación manual).
-- Posible **inyección SQL basada en errores** (comilla en parámetros reales).
-- **Contenido mixto** (recurso HTTP en página HTTPS).
-- **Formulario de credenciales sin cifrar**.
+Escaneo **TCP connect** de los **1000 puertos top de nmap** (o `--ports` /
+`--all-ports`), estilo **`-Pn`** (sin ping ICMP), con detección de servicio/banner.
 
-**Comprobaciones avanzadas** (activas ligeras, no destructivas)
-- **Open redirect**: parámetros de redirección que apuntan a dominios externos.
-- **CORS por reflexión de Origin** (peor si permite credenciales).
-- **Inyección de cabecera Host** (envenenamiento de caché / de enlaces).
-- **GraphQL con introspección** abierta.
-- **Secretos/credenciales** embebidos en HTML o ficheros JavaScript (claves AWS,
-  tokens de GitHub/Google/Slack/Stripe, claves privadas…).
-- Documentación de API expuesta (`swagger.json`, `openapi.json`, `api-docs`).
+- Un puerto abierto se registra como **`info`** (reconocimiento). **No** es una
+  vulnerabilidad por el mero hecho de estar abierto.
+- Solo se generan vulnerabilidades cuando se **detecta un problema real** (estilo `nmap -A`):
+  - **Protocolos en texto claro**: Telnet, r-services (rexec/rlogin/rsh).
+  - **Versiones vulnerables conocidas** por banner (p. ej. vsFTPd 2.3.4 backdoor,
+    ProFTPD 1.3.3c, OpenSSH muy antiguo).
+  - **Servicios sin autenticación**, verificados con una sonda ligera: FTP con
+    login anónimo, Redis y Memcached accesibles sin contraseña.
 
-No es un DAST completo (no reemplaza a Burp/ZAP ni prueba SQLi a fondo o lógica de
-negocio). Cubre configuración, cabeceras, TLS y superficie común, y deja los
-hallazgos listos para revisar y ampliar en Crisol-RX. Los hallazgos repetidos se
-deduplican por título + activo.
+### Máquina por dentro (`--host` + `--ssh-user`) — estilo PEAS
+
+Se autentica por SSH (contraseña o clave), detecta el SO y enumera debilidades y
+vías de escalada, por **secciones coloreadas**.
+
+**Linux**: sistema y kernel + **sugeridor de exploits de kernel** (DirtyCow,
+DirtyPipe, Sequoia…), usuarios con shell, cuentas UID 0 extra, contraseñas vacías,
+`sshd_config`, permisos de `/etc/shadow`, cortafuegos, servicios a la escucha,
+actualizaciones pendientes, **SUID/SGID explotables (GTFOBins)**, world-writable,
+**directorios del PATH escribibles**, **sudo (NOPASSWD / versión vulnerable)**,
+**`/etc/passwd` escribible**, **socket de Docker escribible**, **capabilities
+peligrosas**, **grupos con privilegios (docker/lxd/disk…)**, **NFS `no_root_squash`**,
+**cron/systemd escribibles**, **claves SSH con permisos laxos**, **secretos en
+entorno/fstab/historial**, **ASLR** y **versiones de software** relevante.
+
+**Windows** (requiere **OpenSSH Server** activo; usa PowerShell): sistema,
+Administradores, cortafuegos, Defender, SMBv1, UAC, **servicios con ruta sin
+comillas**, parches, **privilegios de token (SeImpersonate…)**, **AlwaysInstallElevated**,
+**autologon en el registro**, **cmdkey**, **ficheros de instalación desatendida con
+contraseña**, **tareas programadas / autoruns**, **historial de PowerShell**,
+**sesiones PuTTY**, **LSASS sin RunAsPPL**, **recursos compartidos** y **software
+instalado**.
+
+> **No es un PEAS 1:1** (PEAS tiene cientos de comprobaciones), pero cubre los
+> vectores de escalada más habituales con la misma filosofía y salida coloreada, y
+> solo marca como vulnerabilidad lo realmente accionable. Las comprobaciones son de
+> **solo lectura**: no cambian la configuración del sistema. La clave del host SSH
+> se acepta automáticamente (no se verifica), apropiado para una auditoría.
 
 ## Formato de salida
 
@@ -179,15 +261,15 @@ Crisol-RX), por eso Crisol lo importa tal cual.
 ## Estado del proyecto
 
 Fragua está **en desarrollo activo**. Faltan comprobaciones por añadir, la
-cobertura no es completa y la interfaz/salida pueden cambiar entre versiones.
-Se agradecen ideas y reportes de fallos en los *issues*.
+cobertura no es completa y la interfaz/salida pueden cambiar entre versiones. Se
+agradecen ideas y reportes de fallos en los *issues*.
 
 ## Uso ético y responsabilidad
 
-Fragua realiza peticiones a un objetivo remoto, incluyendo algunas comprobaciones
-activas (open redirect, Host falso, comilla SQL, introspección GraphQL).
-**Escanéalo solo si tienes autorización explícita.** El autor no se responsabiliza
-de un uso indebido.
+Fragua realiza peticiones y conexiones a objetivos remotos, incluyendo
+comprobaciones activas (open redirect, Host falso, comilla SQL, introspección
+GraphQL, escaneo de puertos, login SSH). **Úsalo solo contra sistemas para los que
+tengas autorización explícita.** El autor no se responsabiliza de un uso indebido.
 
 ## Licencia
 
