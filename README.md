@@ -96,7 +96,8 @@ Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 | Opción | Por defecto | Para qué |
 |---|---|---|
 | `--url` | — | Activo **web** a escanear. Si no pones esquema, se asume `https://`. |
-| `--host` | — | **Máquina** a auditar (IP/host, no URL): puertos/servicios y, con `--ssh-user`, por dentro. |
+| `--host` | — | **Máquina(s)** a auditar. Admite IP/host, varios con comas y **CIDR** (`10.0.0.0/24`). |
+| `--targets` | — | Fichero con objetivos host (uno por línea; `#` = comentario). |
 
 **Escaneo de host:**
 
@@ -108,20 +109,32 @@ Luego, en Crisol-RX, sube el JSON con cualquiera de los dos:
 | `--ssh-user` | — | Usuario SSH. **Activa la auditoría interna** (por dentro). |
 | `--ssh-pass` | — | Contraseña SSH (o usa `--ssh-key`). |
 | `--ssh-key` | — | Ruta a la clave privada SSH. |
+| `--ssh-key-pass` | — | Passphrase de la clave privada (si está cifrada). |
 | `--ssh-port` | `22` | Puerto SSH. |
+| `--ssh-agent` | `true` | Usar ssh-agent (`SSH_AUTH_SOCK`) si está disponible. |
+| `--ssh-known-hosts` | — | Ruta a `known_hosts` para verificar la clave del host. |
+| `--ssh-strict` | `false` | Fallar si la clave del host no coincide con `known_hosts`. |
 
 **General:**
 
 | Opción | Por defecto | Para qué |
 |---|---|---|
 | `--lang` | `es` | Idioma del reporte: `es`, `en` o `both`. |
-| `--out` | `crisol-<host>.json` | Fichero de salida. |
+| `--out` | `crisol-<host>.json` | Fichero de salida (JSON de Crisol). |
+| `--report` | — | Informe(s) humano(s) además del JSON: `md`, `html`, `csv`, `sarif` (admite lista: `md,html`). |
 | `--name` | el host | Nombre del workspace/proyecto en el reporte. |
+| `--scope` | — | Fichero de alcance: lista blanca de hosts/IP/CIDR; se omite todo lo que no esté dentro. |
 | `--insecure` | `false` | No verificar el certificado TLS del objetivo web. |
 | `--timeout` | `15` | Timeout por petición/conexión, en segundos. |
+| `--max-time` | `0` | Tiempo máximo total del escaneo, en segundos (`0` = sin límite). |
+| `--rate` | `0` | Máximo de peticiones web por segundo (`0` = sin límite). |
 | `--max-pages` | `20` | Nº máximo de páginas a rastrear del mismo dominio (web). |
 | `--no-crawl` | `false` | No rastrear enlaces; escanear solo la URL dada (web). |
+| `--passive` | `false` | Modo pasivo: sin sondas activas (inyección, login, etc.). |
 | `--quiet` | `false` | No mostrar los hallazgos en vivo (solo el resumen). |
+| `--version` | `false` | Mostrar la versión y salir. |
+
+> Puedes interrumpir el escaneo con **Ctrl-C** en cualquier momento: se guarda lo hallado hasta ese punto.
 
 Variables de entorno: `NO_COLOR=1` desactiva el color de la salida.
 
@@ -131,17 +144,28 @@ Variables de entorno: `NO_COLOR=1` desactiva el color de la salida.
 |---|---|
 | `--url` | `./fragua --url https://objetivo.ejemplo` |
 | `--host` | `./fragua --host 10.0.0.5` |
+| `--host` (CIDR/varios) | `./fragua --host 10.0.0.0/24,192.168.1.10` |
+| `--targets` | `./fragua --targets hosts.txt` |
 | `--ports` (lista) | `./fragua --host 10.0.0.5 --ports 22,80,443,8080` |
 | `--ports` (rango) | `./fragua --host 10.0.0.5 --ports 1-1024` |
 | `--all-ports` | `./fragua --host 10.0.0.5 --all-ports` |
 | `--no-portscan` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --no-portscan` |
 | `--ssh-user` + `--ssh-pass` | `./fragua --host 10.0.0.5 --ssh-user admin --ssh-pass 'Secreto123'` |
 | `--ssh-key` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519` |
+| `--ssh-key-pass` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --ssh-key-pass 'frase'` |
 | `--ssh-port` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --ssh-port 2222` |
+| `--ssh-known-hosts` | `./fragua --host 10.0.0.5 --ssh-user root --ssh-key k --ssh-known-hosts ~/.ssh/known_hosts --ssh-strict` |
+| `--passive` | `./fragua --url https://objetivo.ejemplo --passive` |
+| `--version` | `./fragua --version` |
 | `--lang` (inglés) | `./fragua --url https://objetivo.ejemplo --lang en` |
 | `--lang` (ambos) | `./fragua --url https://objetivo.ejemplo --lang both` |
 | `--out` | `./fragua --url https://objetivo.ejemplo --out informe.json` |
+| `--report` | `./fragua --url https://objetivo.ejemplo --report md,html` |
+| `--report` (CI) | `./fragua --host 10.0.0.5 --report sarif` |
 | `--name` | `./fragua --url https://objetivo.ejemplo --name "Cliente ACME"` |
+| `--scope` | `./fragua --host 10.0.0.0/24 --scope alcance.txt` |
+| `--max-time` | `./fragua --host 10.0.0.0/24 --max-time 600` |
+| `--rate` | `./fragua --url https://objetivo.ejemplo --rate 20` |
 | `--insecure` | `./fragua --url https://192.168.1.10 --insecure` |
 | `--timeout` | `./fragua --url https://objetivo.ejemplo --timeout 30` |
 | `--max-pages` | `./fragua --url https://objetivo.ejemplo --max-pages 50` |
@@ -223,6 +247,14 @@ Escaneo **TCP connect** de los **1000 puertos top de nmap** (o `--ports` /
     ProFTPD 1.3.3c, OpenSSH muy antiguo).
   - **Servicios sin autenticación**, verificados con una sonda ligera: FTP con
     login anónimo, Redis y Memcached accesibles sin contraseña.
+  - **SNMP con comunidad `public`** (UDP/161) y **SMB sin firma obligatoria**
+    (SMB2 negotiate), comprobados por red sin credenciales.
+  - **SMBv1 habilitado** (sonda SMB1 negotiate) → expone la familia **EternalBlue /
+    MS17-010** (CVE-2017-0143…0148). Detectado por red, sin credenciales.
+  - **Pistas de CVE por versión** del banner/cabecera `Server`: Apache 2.4.49/50,
+    nginx 1.3/1.4.0, IIS 6.0/7.5, ProFTPD 1.3.3c/1.3.5, OpenSSL 0.9.8/1.0.1
+    (Heartbleed), Exim 4.87–4.91, **Webmin 1.890–1.920 (CVE-2019-15107)**,
+    **Samba 3.0.20 (CVE-2007-2447) / 3.5.0 (SambaCry)**, UnrealIRCd 3.2.8.1, PHP 5.x…
 
 ### Máquina por dentro (`--host` + `--ssh-user`) — estilo PEAS
 
@@ -237,7 +269,10 @@ actualizaciones pendientes, **SUID/SGID explotables (GTFOBins)**, world-writable
 **`/etc/passwd` escribible**, **socket de Docker escribible**, **capabilities
 peligrosas**, **grupos con privilegios (docker/lxd/disk…)**, **NFS `no_root_squash`**,
 **cron/systemd escribibles**, **claves SSH con permisos laxos**, **secretos en
-entorno/fstab/historial**, **ASLR** y **versiones de software** relevante.
+entorno/fstab/historial**, **ASLR**, **versiones de software** relevante y
+**configuración de Samba** (recursos escribibles con `wide links`, `force user` o
+acceso invitado → *symlink escape* y plantado de ficheros como otro usuario, p. ej.
+`~/.ssh/authorized_keys`).
 
 **Windows** (requiere **OpenSSH Server** activo; usa PowerShell): sistema,
 Administradores, cortafuegos, Defender, SMBv1, UAC, **servicios con ruta sin
